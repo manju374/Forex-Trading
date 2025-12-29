@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Forex Trader Platform</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+    <div id="loader" class="loading-overlay hidden">
+        <div class="spinner"></div>
+        <p style="margin-top: 20px;">Running Technical Analysis (MA)...</p>
+    </div>
+
+    <div class="container">
+        <header>
+            <h1>Forex Trading Application</h1>
+            <p class="tagline">Decades of Data. Real-Time Precision.</p> 
+        </header>
+
+        <div class="controls">
+            <select id="currencySelect">
+                <option value="" disabled selected>Loading pairs...</option>
+            </select>
+            <button id="analyzeBtn">Run Analysis</button>
+        </div>
+
+        <div class="dashboard">
+            <div class="stats-row">
+                <div class="stat-card">
+                    <div class="stat-label">Live Market Price</div>
+                    <div class="stat-value">
+                        <span id="livePrice">--</span>
+                        <span id="liveChange" class="change-badge hidden">--</span>
+                    </div>
+                    <div class="stat-subtext" id="liveSubtext">Fetching...</div>
+                </div>
+
+                <div class="stat-card">
+                    <div class="stat-label">MA Strategy (50/200)</div>
+                    <div class="stat-value" id="maSignal" style="font-size: 1.2rem; margin-top: 15px;">--</div>
+                    <div class="stat-subtext">Technical Indicator</div>
+                </div>
+            </div>
+
+            <div class="strategy-box">
+                <div class="strategy-header">
+                    <h3>💡 Strategy Insight</h3>
+                    <span id="strategyBadge" class="strategy-badge">WAIT</span>
+                </div>
+                <p id="strategyDesc">Select a currency pair and run analysis to get a trading signal interpretation.</p>
+                
+                <div class="strategy-legend">
+                    <small><strong>How to read:</strong></small>
+                    <div class="legend-grid">
+                        <div><span class="dot green"></span> Golden Cross = Bullish</div>
+                        <div><span class="dot red" style="background-color: var(--danger);"></span> Death Cross = Bearish</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="chart-box">
+                <div class="filter-controls">
+                    <button class="filter-btn" data-range="1M">1M</button>
+                    <button class="filter-btn" data-range="6M">6M</button>
+                    <button class="filter-btn" data-range="1Y">1Y</button>
+                    <button class="filter-btn" data-range="5Y">5Y</button>
+                    <button class="filter-btn active" data-range="MAX">MAX</button>
+                </div>
+                
+                <div class="canvas-wrapper">
+                    <canvas id="mainChart"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <footer>
+            <p>&copy; 2025 Forex Trading. All rights reserved.</p>
+        </footer>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
