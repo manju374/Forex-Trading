@@ -1,103 +1,220 @@
 # FxTrader: Hybrid AI Forex Trading Engine 📈🤖
 
+![Python](https://img.shields.io/badge/Python-3.8%2B-blue?style=for-the-badge\&logo=python)
+![Flask](https://img.shields.io/badge/Flask-Backend-green?style=for-the-badge\&logo=flask)
+![TensorFlow](https://img.shields.io/badge/TensorFlow-AI-orange?style=for-the-badge\&logo=tensorflow)
+![PostgreSQL](https://img.shields.io/badge/PostgreSQL-Database-blue?style=for-the-badge\&logo=postgresql)
+
 FxTrader is a full-stack, machine-learning-powered Forex trading dashboard. It utilizes a **Hybrid Artificial Intelligence Strategy** that combines macroeconomic Simple Moving Averages (SMA) with a TensorFlow Deep Neural Network (DNN) to forecast currency trends. The system also features an asynchronous, 24/7 Auto-Hedge risk management daemon to protect user portfolios.
 
 ---
 
-## 🏗️ System Architecture & Block Diagram
+# 🏗️ System Architecture & Block Diagram
 
-The application follows a secure Client-Server multi-tier architecture with a detached threading loop for background risk management.
+![System Architecture Block Diagram](diagram.jpeg)
 
-```mermaid
-graph TD
-    %% Define Nodes
-    UI[User Interface <br> HTML5 / JS / Chart.js]
-    Backend[Flask Backend <br> Python WSGI Server]
-    DB[(PostgreSQL <br> alphafxtrader_db)]
-    API[Yahoo Finance API <br> Live Market Data]
-    ML[AI Pipeline <br> TensorFlow / Keras]
-    Daemon((Auto-Hedge <br> Background Thread))
+The application follows a secure Client-Server multi-tier architecture, ensuring real-time data flow between the Flask backend, the PostgreSQL database, and the TensorFlow AI pipeline.
 
-    %% Define Connections
-    UI <-->|REST API Requests| Backend
-    Backend <-->|ACID Transactions| DB
-    Backend <-->|Fetch OHLC & Live Ticks| API
-    Backend -->|60-Day Rolling Data| ML
-    ML -->|3-Day Price Forecast| Backend
-    
-    %% Background Process
-    Daemon -.->|Polls every 60s| Backend
-    Daemon -.->|Auto-Liquidates at 2-5% loss| DB
+---
 
-    %% Styling
-    style UI fill:#3b82f6,stroke:#1e3a8a,color:#fff
-    style Backend fill:#10b981,stroke:#047857,color:#fff
-    style DB fill:#f59e0b,stroke:#b45309,color:#fff
-    style API fill:#6366f1,stroke:#4338ca,color:#fff
-    style ML fill:#8b5cf6,stroke:#5b21b6,color:#fff
-    style Daemon fill:#ef4444,stroke:#b91c1c,color:#fff
+# ✨ Key Features
 
-✨ Key Features
-Hybrid AI Confluence (SMA + DNN): Filters out market noise by comparing long-term Moving Averages with short-term Deep Learning momentum. This filtration blocks "False Positive" buy signals in ranging markets, mathematically pushing predictive accuracy to 81.4%.
+### Hybrid AI Confluence (SMA + DNN)
 
-Live Price Execution: Bypasses stale data by fetching microsecond-accurate prices from Yahoo Finance before executing any database transaction.
+Filters market noise by combining long-term Moving Averages with short-term Deep Learning momentum. This prevents false buy signals in ranging markets and improves predictive accuracy to **81.4%**.
 
-Autonomous Risk Management: A detached Python background thread runs continuously. Every 60 seconds, it cross-references live market prices with the user's active portfolio. If an asset drops past the dynamic 2% - 5% threshold, the system auto-liquidates the position to preserve capital.
+### Live Price Execution
 
-Interactive Data Visualization: Renders smooth, GPU-accelerated time-series graphs using Chart.js, cleanly plotting historical data against the AI's future prediction paths.
+The system fetches real-time prices directly from **Yahoo Finance** before executing any transaction, ensuring the database always uses the latest market data.
 
-🛠️ Technology Stack
-Frontend: HTML5, CSS3, JavaScript (ES6), Chart.js
+### Autonomous Risk Management
 
-Backend: Python 3.x, Flask
+A detached Python background thread runs continuously. Every **60 seconds**, it checks the user's active portfolio against live market prices and automatically liquidates positions if they cross the **2% – 5% loss threshold**.
 
-Database: PostgreSQL (psycopg2)
+### Interactive Data Visualization
 
-Machine Learning: TensorFlow, Keras, Pandas, NumPy, Scikit-Learn (MinMaxScaler)
+The frontend uses **Chart.js** to render smooth time-series graphs showing historical price data and the AI model's predicted future trend.
 
-External Data API: yfinance (Yahoo Finance)
+---
 
-🚀 Installation & Setup
-Follow these steps to run AlphaFxTrader on your local machine.
+# 🛠️ Technology Stack
 
-1. Prerequisites
-Python 3.8+ installed
+### Frontend
 
-PostgreSQL installed and running on port 5432
+* HTML5
+* CSS3
+* JavaScript (ES6)
+* Chart.js
 
-2. Clone the Repository
-git clone [https://github.com/manju374/Forex-Trading.git]
+### Backend
 
-3. Create a Virtual Environment
+* Python 3.x
+* Flask (WSGI Server)
+
+### Database
+
+* PostgreSQL
+* psycopg2
+
+### Machine Learning
+
+* TensorFlow
+* Keras
+* Pandas
+* NumPy
+* Scikit-Learn
+
+### External API
+
+* yfinance (Yahoo Finance Market Data)
+
+---
+
+# 🚀 Installation & Setup
+
+Follow these steps to run AlphaFxTrader locally.
+
+---
+
+## Step 1: Prerequisites
+
+Make sure the following software is installed:
+
+* Python **3.8+**
+* PostgreSQL
+
+---
+
+## Step 2: Clone the Repository
+
+Open terminal and run:
+
+```bash
+git clone https://github.com/manju374/Forex-Trading.git
+cd FOREX_TRADING
+```
+
+---
+
+## Step 3: Create Virtual Environment
+
+```bash
 python -m venv venv
-source venv/bin/activate  # On Windows use: venv\Scripts\activate
+```
 
-4. Install Dependencies
+Activate environment:
+
+**Linux / Mac**
+
+```bash
+source venv/bin/activate
+```
+
+**Windows**
+
+```bash
+venv\Scripts\activate
+```
+
+---
+
+## Step 4: Install Dependencies
+
+```bash
 pip install -r requirements.txt
+```
 
-5. Environment Variables Configuration
-Create a .env file in the root directory (do not commit this file to Git) and add your secure credentials:
-# Flask Configuration
+---
+
+## Step 5: Environment Configuration
+
+Create a `.env` file in the project root directory and add the following configuration:
+
+```env
 FLASK_APP=app.py
 FLASK_ENV=development
 SECRET_KEY=your_secure_flask_key
 
-# Database Credentials
 DB_HOST=localhost
 DB_NAME=ForexTrading
 DB_USER=postgres
 DB_PASSWORD=your_database_password
+```
 
-6. Run the Application
-Start the Werkzeug WSGI server and the background Auto-Hedge daemon:
+---
+
+## Step 6: Run the Application
+
+Start the Flask server:
+
+```bash
 python app.py
-Open your web browser and navigate to: http://localhost:5000
+```
 
-🧠 Machine Learning Methodology
-The forecasting engine utilizes a Univariate Time-Series Deep Neural Network.
+Open your browser and go to:
 
-Input Layer: Accepts a 60-day rolling window of historically scaled closing prices.
+```
+http://localhost:5000
+```
 
-Hidden Layers: A lightweight 16-node and 8-node dual-layer architecture utilizing the ReLU activation function to prevent overfitting and guarantee low-latency web responses.
+---
 
-Output: Predicts the directional end-of-day closing price for the next 3 days, dynamically anchoring the visual UI graph to prevent contradictory text/line slopes.
+# 🧠 Machine Learning Methodology
+
+The prediction engine uses a **Univariate Time-Series Deep Neural Network (DNN)**.
+
+### Input Layer
+
+Accepts a **60-day rolling window** of normalized historical closing prices.
+
+### Hidden Layers
+
+Two dense layers:
+
+* 16 neurons
+* 8 neurons
+
+Activation Function:
+
+```
+ReLU (Rectified Linear Unit)
+```
+
+This prevents overfitting while maintaining low-latency responses suitable for a real-time trading dashboard.
+
+### Output Layer
+
+Predicts the **directional closing price for the next 3 trading days**, allowing the UI to dynamically plot the expected market trajectory.
+
+---
+
+# 📊 System Workflow
+
+1. User opens the trading dashboard.
+2. Flask server fetches historical Forex data using **yfinance**.
+3. Data is preprocessed with **Pandas and NumPy**.
+4. TensorFlow DNN model predicts future price trends.
+5. Results are stored in **PostgreSQL**.
+6. The frontend visualizes predictions using **Chart.js**.
+7. The **Auto-Hedge daemon** continuously monitors open trades and executes automatic risk control.
+
+---
+
+# 🔒 Security Features
+
+* Environment variables stored in `.env`
+* Database credentials protected
+* Secure Flask session management
+* Automated risk mitigation using portfolio monitoring
+
+---
+
+# 📌 Future Improvements
+
+* LSTM-based deep learning model
+* Real-time WebSocket price streaming
+* Multi-currency portfolio support
+* Cloud deployment using Docker and AWS
+
+---
+
