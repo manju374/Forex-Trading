@@ -3,23 +3,100 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Forex Trader Platform</title>
+    <title>FxTrader | Pro Platform</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="/static/style.css">
 </head>
 <body>
 
     <div id="loader" class="loading-overlay hidden">
         <div class="spinner"></div>
-        <p style="margin-top: 20px;">Running Technical Analysis (MA)...</p>
+        <p style="margin-top: 20px;">Analysing...</p>
     </div>
 
     <div class="container">
         <header>
-            <h1>Forex Trading Application</h1>
-            <p class="tagline">Decades of Data. Real-Time Precision.</p> 
-        </header>
+    <div class="top-nav">
+        <div class="brand">FxTrading <span style="font-size:0.5em; color:var(--accent);">PRO</span></div>
+        
+        <div class="user-profile-container">
+            <div class="profile-trigger" id="profileBtn">
+                <div class="avatar">{{ user_name[0] | upper }}</div>
+                <span class="username-display">{{ user_name }}</span>
+                <span class="arrow">▼</span>
+            </div>
+            
+            <div class="profile-dropdown hidden" id="profileDropdown">
+                <div class="dropdown-header">
+                    <small>Signed in as</small><br>
+                    <strong>{{ user_name }}</strong>
+                </div>
+                <hr>
+                <a href="#" id="portfolioLink">💼 My Portfolio</a>
+                <a href="#" id="historyLink">📜 Trading History</a>
+                <hr>
+                <a href="{{ url_for('logout') }}" class="logout-link">🚪 Log Out</a>
+            </div>
+        </div>
+    </div>
+    
+    <div class="hero-section">
+        <h1>Forex Trading Application</h1>
+        <p class="tagline">Decades of Data. Real-Time Precision. <span class="badge">AI-Powered</span></p> 
+    </div>
+</header>
 
+<div id="historyModal" class="modal hidden">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h2>My Trading History</h2>
+            <span class="close-modal">&times;</span>
+        </div>
+        <div class="modal-body">
+            <table id="historyTable">
+                <thead>
+                    <tr>
+                        <th>Date</th>
+                        <th>Pair</th>
+                        <th>Action</th>
+                        <th>Price</th>
+                        <th>Amount</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    </tbody>
+            </table>
+            <p id="noHistoryMsg" class="hidden">No trades recorded yet.</p>
+        </div>
+    </div>
+</div>
+
+<div id="portfolioModal" class="modal hidden">
+    <div class="modal-content" style="max-width: 800px;">
+        <div class="modal-header">
+            <h2>Current Portfolio Performance</h2>
+            <span class="close-modal" id="closePortfolio">&times;</span>
+        </div>
+        <div class="modal-body">
+            <table id="portfolioTable">
+                <thead>
+                    <tr>
+                        <th>Pair</th>
+                        <th>Units</th>
+                        <th>Avg Price</th>
+                        <th>Live Price</th>
+                        <th>Current Value</th>
+                        <th>P/L ($)</th>
+                        <th>ROI (%)</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    </tbody>
+            </table>
+            <p id="noPortfolioMsg" class="hidden">You have no active positions.</p>
+        </div>
+    </div>
+</div>
         <div class="controls">
             <select id="currencySelect">
                 <option value="" disabled selected>Loading pairs...</option>
@@ -35,7 +112,13 @@
                         <span id="livePrice">--</span>
                         <span id="liveChange" class="change-badge hidden">--</span>
                     </div>
-                    <div class="stat-subtext" id="liveSubtext">Fetching...</div>
+                    <div class="stat-subtext" id="liveSubtext">Select a pair to fetch data</div>
+                </div>
+
+                <div class="stat-card">
+                    <div class="stat-label">AI Forecast</div>
+                    <div class="stat-value" id="aiTrend">--</div>
+                    <div class="stat-subtext" id="aiTarget">Target: --</div>
                 </div>
 
                 <div class="stat-card">
@@ -53,16 +136,34 @@
                 <p id="strategyDesc">Select a currency pair and run analysis to get a trading signal interpretation.</p>
                 
                 <div class="strategy-legend">
-                    <small><strong>How to read:</strong></small>
+                    <small><strong>Chart Legend:</strong></small>
                     <div class="legend-grid">
-                        <div><span class="dot green"></span> Golden Cross = Bullish</div>
-                        <div><span class="dot red" style="background-color: var(--danger);"></span> Death Cross = Bearish</div>
+                        <div><span class="dot blue"></span> Price History</div>
+                        <div><span class="dot purple dashed"></span> AI Prediction</div>
+                        <div><span class="dot green"></span> SMA 50 (Fast)</div>
+                        <div><span class="dot red"></span> SMA 200 (Slow)</div>
                     </div>
                 </div>
             </div>
 
             <div class="chart-box">
+                <div class="chart-options" style="display: flex; gap: 15px; margin-bottom: 10px; padding: 0 10px;">
+                    <label class="toggle-label">
+                        <input type="checkbox" id="toggleSMA50" checked> 
+                            <span class="dot green"></span> SMA 50
+                    </label>
+                    <label class="toggle-label">
+                        <input type="checkbox" id="toggleSMA200" checked> 
+                            <span class="dot red"></span> SMA 200
+                    </label>
+                    <label class="toggle-label">
+                        <input type="checkbox" id="toggleAI" checked> 
+                        <span class="dot purple dashed"></span> AI Forecast
+                    </label>
+                </div>
                 <div class="filter-controls">
+                    <button class="filter-btn" data-range="1D">1D <span class="live-dot">●</span></button>
+                    <button class="filter-btn" data-range="1W">1W</button>
                     <button class="filter-btn" data-range="1M">1M</button>
                     <button class="filter-btn" data-range="6M">6M</button>
                     <button class="filter-btn" data-range="1Y">1Y</button>
@@ -70,17 +171,57 @@
                     <button class="filter-btn active" data-range="MAX">MAX</button>
                 </div>
                 
+                
+                
                 <div class="canvas-wrapper">
                     <canvas id="mainChart"></canvas>
                 </div>
             </div>
+
+            <div class="trading-panel card-buy" id="tradePanel">
+    <h3>📉 Paper Trading Simulator</h3>
+    
+    <div class="wallet-info">
+        <span>Available Balance:</span>
+        <span id="walletBalance" class="balance-text">$10,000.00</span>
+    </div>
+
+    <div class="trade-form">
+        <label>Amount (USD)</label>
+        <input type="number" id="tradeAmount" placeholder="Min $10" min="10">
+        
+        <div class="trade-buttons">
+            <button id="btnBuy" class="btn-trade buy">BUY</button>
+            <button id="btnSell" class="btn-trade sell">SELL</button>
+            <button id="btnHedge" class="btn-hedge" style="background-color: #a855f7; color: white; border: 1px solid #c084fc; margin-left: 10px;">
+            🛡️ Auto-Hedge Risk</button>
+        </div>
+        <!-- ADD THIS BELOW YOUR BUY/SELL/HEDGE BUTTONS -->
+<!-- Replace your old smart-hedge-box with this -->
+<div class="smart-hedge-box" style="margin-top: 20px; padding: 15px; border: 1px solid #334155; border-radius: 8px; background: rgba(30, 41, 59, 0.7);">
+    <h4 style="margin: 0 0 10px 0; color: #a855f7;">🤖 Active Background Hedging</h4>
+    <p style="font-size: 0.85rem; color: #cbd5e1; line-height: 1.5; margin-bottom: 0;">
+        <strong>How it works:</strong> A Python continuously monitors all portfolios 24/7.<br><br>
+        <span style="color: #facc15;">⚠️ Evaluation Zone (2% - 5% Loss):</span> If an asset enters this zone, the algorithm tracks it. If the loss <em>worsens</em>, it auto-sells. If it <em>recovers</em>, it holds.<br>
+        <span style="color: #f87171;">🛑 Hard Stop (> 5% Loss):</span> Immediate auto-liquidation to prevent catastrophic loss.
+    </p>
+</div>
+</div>
+    </div>
+    
+    
+    <div id="tradeMessage" class="hidden"></div>
+</div>
         </div>
 
         <footer>
-            <p>&copy; 2025 Forex Trading. All rights reserved.</p>
+            <p>&copy; 2026 FxTrader. All rights reserved.</p>
         </footer>
     </div>
 
-    <script src="script.js"></script>
+    <div id="toast-container"></div>
+
+    <script src="{{ url_for('static', filename='script.js') }}"></script>
+</body>
 </body>
 </html>

@@ -1,0 +1,31 @@
+# 1. Environment Variables (CRITICAL: Never upload passwords!)
+.env
+
+# 2. Python Virtual Environments
+venv/
+env/
+.venv/
+
+# 3. Python Cache (Junk files Python creates automatically)
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# 4. Machine Learning & Data Files
+# (Do not upload massive ML models or raw datasets to GitHub)
+*.h5
+*.keras
+*.pkl
+*.csv
+/logs/
+checkpoints/
+
+# 5. OS & IDE Specific Files
+.DS_Store
+.vscode/
+.idea/
+
+# 6. Flask Instance / Local Databases
+instance/
+*.sqlite3
