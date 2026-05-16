@@ -57,6 +57,10 @@ def get_db_connection():
     except Exception as e:
         print(f"Database Connection Error: {e}")
         return None
+
+
+# 2. The Background Daemon Function
+
 @app.after_request
 def add_header(response):
     response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
@@ -256,8 +260,10 @@ ACTIVE_HEDGES = set()
 HEDGE_TRACKER = {}
 @app.route('/api/hedge', methods=['POST'])
 def auto_hedge():
-    """Activates the Auto-Hedge monitor. Does NOT sell immediately."""
-    if 'user_id' not in session: return jsonify({"error": "Unauthorized"}), 401
+    """Activates the LIVE Auto-Hedge daemon for a specific trade."""
+    if 'user_id' not in session: 
+        return jsonify({"error": "Unauthorized"}), 401
+        
     pair = request.get_json().get('pair')
     user_id = session['user_id']
     
@@ -271,7 +277,7 @@ def auto_hedge():
         if not holding:
             return jsonify({"error": "No open position to monitor."}), 400
             
-        # Add to the active monitoring list
+        # Add to the active monitoring list for the Daemon
         tracker_key = f"{user_id}_{pair}"
         ACTIVE_HEDGES.add(tracker_key)
         
@@ -282,22 +288,21 @@ def auto_hedge():
         cur.close()
         conn.close()
 
-# --- SMART CONDITIONAL HEDGING (2% - 5% LOGIC) ---
+
 @app.route('/api/smart_hedge', methods=['POST'])
 def smart_hedge():
-    if 'user_id' not in session: return jsonify({"error": "Unauthorized"}), 401
+    """Manual Simulator Box logic (UI testing for Day 1 vs Day 2 logic)"""
+    if 'user_id' not in session: 
+        return jsonify({"error": "Unauthorized"}), 401
     
     data = request.get_json()
     pair = data.get('pair')
-    
-    # Values passed from the UI Test Box
     sim_day1 = data.get('day1_loss')
     sim_day2 = data.get('day2_loss')
     
     conn = get_db_connection()
     cur = conn.cursor(cursor_factory=RealDictCursor)
     try:
-        # 1. Verify user has an open trade
         cur.execute("SELECT total_units, average_price FROM portfolio WHERE user_id = %s AND currency_pair = %s AND total_units > 0", (session['user_id'], pair))
         holding = cur.fetchone()
         
@@ -307,36 +312,29 @@ def smart_hedge():
         units = float(holding['total_units'])
         entry_price = float(holding['average_price'])
         
-        # 2. Get Simulated Loss Percentages
         loss_day_1 = float(sim_day1)
         loss_day_2 = float(sim_day2)
-        
-        # Calculate what the price WOULD be based on Day 2 Loss
         simulated_current_price = entry_price * (1 - (loss_day_2 / 100))
 
-        # 3. EVALUATE THE RULES
         if 2.0 <= loss_day_1 <= 5.0:
             if loss_day_2 > loss_day_1:
-                # CONDITION MET: Day 2 is worse. Execute Hedge!
                 hedge_amount_usd = units * simulated_current_price
                 cur.execute("UPDATE users SET balance = balance + %s WHERE id = %s", (hedge_amount_usd, session['user_id']))
                 cur.execute("UPDATE portfolio SET total_units = 0 WHERE user_id = %s AND currency_pair = %s", (session['user_id'], pair))
                 cur.execute("INSERT INTO trading_history (user_id, currency_pair, action_type, entry_price, amount) VALUES (%s, %s, %s, %s, %s)",
-                            (session['user_id'], pair, 'HDGE', simulated_current_price, hedge_amount_usd))
+                            (session['user_id'], pair, 'SIM-HDGE', simulated_current_price, hedge_amount_usd))
                 conn.commit()
                 
                 return jsonify({
                     "status": "hedged", 
-                    "message": f"🛡️ HEDGE EXECUTED! Day 1 Loss was {loss_day_1}%. Day 2 worsened to {loss_day_2}%. Position closed to protect capital."
+                    "message": f"🛡️ HEDGE EXECUTED! Day 1 Loss was {loss_day_1}%. Day 2 worsened to {loss_day_2}%. Position closed."
                 })
             else:
-                # RECOVERING: Day 2 is better. Hold!
                 return jsonify({
                     "status": "held", 
-                    "message": f"📈 HOLDING. Day 1 Loss was {loss_day_1}%. Day 2 recovered to {loss_day_2}%. Smart Hedge deactivated."
+                    "message": f"📈 HOLDING. Day 1 Loss was {loss_day_1}%. Day 2 recovered to {loss_day_2}%."
                 })
         else:
-            # OUTSIDE DANGER ZONE
             return jsonify({
                 "status": "ignored", 
                 "message": f"⏸️ NO ACTION. Day 1 loss ({loss_day_1}%) is outside the 2% - 5% trigger zone."
@@ -348,7 +346,8 @@ def smart_hedge():
     finally: 
         cur.close()
         conn.close()
-# --- HISTORY & DATA ROUTES ---
+# --- SMART CONDITIONAL HEDGING (2% - 5% LOGIC) ---
+
 
 @app.route('/api/history')
 def get_user_history():
@@ -575,88 +574,75 @@ def execute_auto_hedge(cur, user_id, pair, units, current_price, reason):
                 (user_id, pair, 'SELL', current_price, amount_usd))
     print(f"[{reason}] Auto-Hedged (Sold) {pair} for User {user_id} at price {current_price}")
 
-def automated_hedge_daemon():
-    """Runs continuously in the background to monitor active hedges"""
-    print("🤖 Background Auto-Hedge Monitor Started...")
+def auto_hedge_daemon():
+    print("🛡️ [DAEMON] Auto-Hedge Thread Started. Waiting for targets...")
     while True:
-        time.sleep(60) # Scan every 60 seconds
-        
-        # If nobody clicked the shield button, skip the database check
-        if not ACTIVE_HEDGES: 
-            continue 
-            
+        if not ACTIVE_HEDGES:
+            time.sleep(60)
+            continue
+
         conn = get_db_connection()
-        if not conn: continue
+        if not conn:
+            time.sleep(60)
+            continue
+            
         cur = conn.cursor(cursor_factory=RealDictCursor)
-        
+        items_to_remove = []
+
         try:
-            cur.execute("SELECT * FROM portfolio WHERE total_units > 0")
-            open_positions = cur.fetchall()
-
-            for pos in open_positions:
-                user_id = pos['user_id']
-                pair = pos['currency_pair']
-                tracker_key = f"{user_id}_{pair}"
-
-                # ONLY check this trade if the user activated the shield
-                if tracker_key not in ACTIVE_HEDGES:
+            for tracker_key in list(ACTIVE_HEDGES):
+                user_id, pair = tracker_key.split('_', 1)
+                
+                cur.execute("SELECT total_units, average_price FROM portfolio WHERE user_id = %s AND currency_pair = %s AND total_units > 0", (user_id, pair))
+                holding = cur.fetchone()
+                
+                if not holding:
+                    items_to_remove.append(tracker_key)
                     continue
+                    
+                entry_price = float(holding['average_price'])
+                units = float(holding['total_units'])
+                
+                # Fetch Live Market Price
+                # 2. Fetch Live Market Price
+                # Convert names like 'INR_JPY' or 'EUR/USD' to Yahoo format: 'INRJPY=X'
+                yf_symbol = pair.replace('_', '').replace('/', '').replace('-', '') + '=X'
+                ticker = yf.Ticker(yf_symbol)
+                live_data = ticker.history(period="1d")
+                if live_data.empty: continue
+                live_price = float(live_data['Close'].iloc[-1])
+                
+                roi = ((live_price - entry_price) / entry_price) * 100
+                print(f"🛡️ [DAEMON] Checking {pair} for User {user_id} | Live ROI: {roi:.2f}%")
+                
+                # The 2% - 5% Rule
+                if -5.0 <= roi <= -2.0:
+                    print(f"🚨 [DAEMON] THRESHOLD CROSSED! Auto-liquidating {pair} at {roi:.2f}% loss.")
+                    hedge_amount_usd = units * live_price
+                    
+                    cur.execute("UPDATE users SET balance = balance + %s WHERE id = %s", (hedge_amount_usd, user_id))
+                    cur.execute("UPDATE portfolio SET total_units = 0 WHERE user_id = %s AND currency_pair = %s", (user_id, pair))
+                    cur.execute("INSERT INTO trading_history (user_id, currency_pair, action_type, entry_price, amount) VALUES (%s, %s, %s, %s, %s)",
+                                (user_id, pair, 'AUTO-HDGE', live_price, hedge_amount_usd))
+                    conn.commit()
+                    items_to_remove.append(tracker_key)
 
-                units = float(pos['total_units'])
-                avg_price = float(pos['average_price'])
+            for item in items_to_remove:
+                ACTIVE_HEDGES.remove(item)
 
-                # Get Live Price
-                try:
-                    ticker = yf.Ticker(pair.replace('_', '') + "=X")
-                    current_price = float(ticker.history(period='1d')['Close'].iloc[-1])
-                except:
-                    continue # Skip if API fails
-
-                # Calculate Loss Percentage
-                invested = units * avg_price
-                current_val = units * current_price
-                pl_pct = ((current_val - invested) / invested) * 100
-
-                # RULE A: Hard Stop Loss (Greater than 5% loss)
-                if pl_pct <= -5.0:
-                    execute_auto_hedge(cur, user_id, pair, units, current_price, "HARD STOP >5%")
-                    ACTIVE_HEDGES.discard(tracker_key) # Turn off shield
-                    HEDGE_TRACKER.pop(tracker_key, None)
-
-                # RULE B: The 2% - 5% Smart Evaluation Zone
-                elif -5.0 < pl_pct <= -2.0:
-                    current_loss = abs(pl_pct) 
-
-                    if tracker_key in HEDGE_TRACKER:
-                        previous_loss = HEDGE_TRACKER[tracker_key]
-                        
-                        if current_loss > previous_loss:
-                            # CONDITION MET: Loss is worsening. Execute Hedge!
-                            execute_auto_hedge(cur, user_id, pair, units, current_price, "SMART HEDGE WORSENED")
-                            ACTIVE_HEDGES.discard(tracker_key) # Turn off shield
-                            del HEDGE_TRACKER[tracker_key]
-                        else:
-                            # Recovering. Keep shield on, update memory, and HOLD.
-                            HEDGE_TRACKER[tracker_key] = current_loss
-                    else:
-                        # First time entering the 2%-5% zone. Record it and wait.
-                        HEDGE_TRACKER[tracker_key] = current_loss
-
-                # RULE C: Safe Zone (Loss is < 2% or trade is in Profit like +0.9%)
-                else:
-                    # Do nothing. Just clear the tracker if it was previously in the danger zone.
-                    if tracker_key in HEDGE_TRACKER:
-                        del HEDGE_TRACKER[tracker_key] 
-
-            conn.commit()
         except Exception as e:
+            print(f"❌ [DAEMON ERROR]: {e}")
             conn.rollback()
-            print(f"Daemon Error: {e}")
         finally:
             cur.close()
             conn.close()
-# Start the background daemon before running the Flask app
-threading.Thread(target=automated_hedge_daemon, daemon=True).start()
+
+        time.sleep(60)
+
+# 3. Start the daemon thread right after your app = Flask(__name__) line
+daemon_thread = threading.Thread(target=auto_hedge_daemon, daemon=True)
+daemon_thread.start()
+
 
 # --- KEEP YOUR EXISTING APP.RUN BELOW THIS ---
 if __name__ == '__main__':
@@ -665,3 +651,4 @@ if __name__ == '__main__':
     print(f" URL: http://127.0.0.1:5000")
     print(f"{'='*40}\n")
     app.run(debug=True, port=5000, use_reloader=False)
+
